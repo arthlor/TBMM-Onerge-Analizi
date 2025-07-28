@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { parliamentaryQuestionsData } from '@/data/parliamentaryQuestionsData';
+import { useMobileDetection } from '@/utils/mobileDetection';
 import './PoliticalPartyAnalysis.css';
 
 interface PoliticalPartyData {
@@ -15,6 +16,7 @@ interface PoliticalPartyData {
 const PoliticalPartyAnalysis: React.FC = () => {
   const [selectedParty, setSelectedParty] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'total' | 'timelyRate' | 'unansweredRate'>('total');
+  const { isMobile, isTablet } = useMobileDetection();
 
   const partyData = useMemo(() => {
     return parliamentaryQuestionsData.politicalPartyData.filter(item => item.party !== 'Toplam');

@@ -103,6 +103,11 @@
   border: 1px solid #f1f3f4;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 160px;
 }
 
 .number-card::before {
@@ -136,6 +141,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .number-card .number-value {
@@ -143,6 +151,8 @@
   font-weight: 700;
   color: #2c3e50;
   line-height: 1.2;
+  text-align: center;
+  width: 100%;
 }
 
 .number-card .number-label {
@@ -151,12 +161,16 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: center;
+  width: 100%;
 }
 
 .number-card .number-percentage {
   font-size: 16px;
   font-weight: 600;
   margin-top: 4px;
+  text-align: center;
+  width: 100%;
 }
 
 .number-card.total .number-value {
@@ -366,6 +380,7 @@
   
   .number-card {
     padding: 20px;
+    min-height: 140px;
   }
   
   .number-card .number-value {
@@ -405,6 +420,10 @@
   
   .summary-section {
     padding: 16px;
+  }
+  
+  .number-card {
+    min-height: 120px;
   }
   
   .finding-item {

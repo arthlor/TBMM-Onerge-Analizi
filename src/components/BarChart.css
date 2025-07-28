@@ -4,6 +4,13 @@
   padding: 16px;
   margin: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.chart-wrapper {
+  width: 100%;
+  min-height: 300px;
+  position: relative;
 }
 
 .chart-title {
@@ -12,4 +19,37 @@
   text-align: center;
   margin-bottom: 16px;
   color: #333333;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .bar-chart-container {
+    padding: 12px;
+    margin: 8px;
+  }
+  
+  .chart-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .chart-wrapper {
+    min-height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bar-chart-container {
+    padding: 8px;
+    margin: 4px;
+  }
+  
+  .chart-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .chart-wrapper {
+    min-height: 200px;
+  }
 } 
