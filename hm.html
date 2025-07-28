@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TBMM Soru Önergesi Paneli</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* EN ÖNEMLİ KURAL: Sayfanın kaydırılmasını KESİNLİKLE engeller */
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+        }
+
+        /* DEĞİŞİKLİK: Konteyner artık dikey alanı Flexbox ile kusursuz yönetiyor */
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Viewport yüksekliğinin %100'ünü kullanır */
+            padding: 8px; /* Boşluklar azaltıldı */
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            padding-bottom: 5px;
+            flex-shrink: 0; /* Header asla küçülmez, yerini korur */
+        }
+
+        header h1 {
+            color: #1e3a56;
+            margin: 0;
+            font-size: 1.5em; /* Okunaklı ama kompakt */
+            font-weight: 600;
+        }
+
+        header p {
+            color: #5a6e82;
+            margin: 0 0 5px 0;
+            font-size: 0.8em;
+        }
+
+        /* DEĞİŞİKLİK: Grid artık kalan tüm alanı doldurmak üzere ayarlandı */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px; /* Boşluklar azaltıldı */
+            flex-grow: 1; /* Kalan dikey alanı tamamen doldurur */
+            min-height: 0; /* EN KRİTİK DÜZELTME: Çocukların ana kabı taşırmasını önler */
+        }
+
+        .card {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0; /* DEĞİŞİKLİK: Kartların da esneyebilmesini sağlar */
+        }
+        
+        .card h2 {
+            text-align: center;
+            color: #34495e;
+            margin: 0 0 8px 0;
+            font-size: 1.0em; /* Başlıklar kompakt tutuldu */
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+        }
+        
+        .side-panel {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            gap: 8px;
+            min-height: 0; /* Güvenlik önlemi olarak eklendi */
+        }
+
+        .table-wrapper {
+            overflow-y: auto; /* Sadece tablonun kendi içi kayar, sayfa değil */
+            flex-grow: 1; /* DEĞİŞİKLİK: Yükseklik yerine esneyerek kalan alanı doldurur */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th, td {
+            border: 1px solid #eef0f2;
+            padding: 4px; /* Boşluklar azaltıldı */
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            color: #333;
+        }
+        
+        td.numeric {
+            text-align: right;
+            font-family: "Menlo", "Consolas", monospace;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <header>
+            <h1>TBMM Soru Önergesi Paneli</h1>
+            <p>28. Yasama Dönemi Cevaplama Analizi</p>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Sol Sütun: Ana Grafik -->
+            <div class="card">
+                <h2>Bakanlık Cevaplama Performansı (Oransal)</h2>
+                <div class="chart-container">
+                    <canvas id="proportionalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sağ Sütun: Yan Panel -->
+            <div class="side-panel">
+                <div class="card">
+                    <h2>Toplam Soru Sayısı</h2>
+                    <div class="chart-container">
+                        <canvas id="totalWorkloadChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Detaylı Veriler</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Bakanlık</th>
+                                    <th>Soru Sayısı</th>
+                                    <th>Yasal Sürede Cevaplananlar</th>
+                                    <th>Yasal Süresi Geçtikten Sonra Cevaplananlar</th>
+                                    <th>Yanıtlanmayan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. VERİ KAYNAĞI ---
+        const jsonData = {
+          "table_data": [
+            {"Muhatap": "TBMM Başkanlığı", "Toplam": 119, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 116, "Süresi Geçtikten Sonra Cevaplanan": 0, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 1, "Cevaplanma Süresi Devam Eden": 2},
+            {"Muhatap": "Cumhurbaşkanı Yardımcılığı (Cevdet Yılmaz)", "Toplam": 1245, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 677, "Süresi Geçtikten Sonra Cevaplanan": 454, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 94, "Cevaplanma Süresi Devam Eden": 20},
+            {"Muhatap": "Adalet Bakanlığı", "Toplam": 4282, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 364, "Süresi Geçtikten Sonra Cevaplanan": 2578, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 1238, "Cevaplanma Süresi Devam Eden": 102},
+            {"Muhatap": "Aile ve Sosyal Hizmetler Bakanlığı", "Toplam": 1173, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 146, "Süresi Geçtikten Sonra Cevaplanan": 852, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 144, "Cevaplanma Süresi Devam Eden": 31},
+            {"Muhatap": "Çalışma ve Sosyal Güvenlik Bakanlığı", "Toplam": 1522, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 164, "Süresi Geçtikten Sonra Cevaplanan": 745, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 579, "Cevaplanma Süresi Devam Eden": 34},
+            {"Muhatap": "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı", "Toplam": 3347, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 212, "Süresi Geçtikten Sonra Cevaplanan": 1327, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 1682, "Cevaplanma Süresi Devam Eden": 126},
+            {"Muhatap": "Dışişleri Bakanlığı", "Toplam": 399, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 33, "Süresi Geçtikten Sonra Cevaplanan": 107, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 252, "Cevaplanma Süresi Devam Eden": 7},
+            {"Muhatap": "Enerji ve Tabii Kaynaklar Bakanlığı", "Toplam": 1106, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 221, "Süresi Geçtikten Sonra Cevaplanan": 809, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 44, "Cevaplanma Süresi Devam Eden": 32},
+            {"Muhatap": "Gençlik ve Spor Bakanlığı", "Toplam": 622, "Geri Alınan": 1, "Süresi İçinde Cevaplanan": 36, "Süresi Geçtikten Sonra Cevaplanan": 31, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 543, "Cevaplanma Süresi Devam Eden": 11},
+            {"Muhatap": "Hazine ve Maliye Bakanlığı", "Toplam": 1082, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 141, "Süresi Geçtikten Sonra Cevaplanan": 807, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 106, "Cevaplanma Süresi Devam Eden": 28},
+            {"Muhatap": "İçişleri Bakanlığı", "Toplam": 4105, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 199, "Süresi Geçtikten Sonra Cevaplanan": 2463, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 1345, "Cevaplanma Süresi Devam Eden": 98},
+            {"Muhatap": "Kültür ve Turizm Bakanlığı", "Toplam": 833, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 22, "Süresi Geçtikten Sonra Cevaplanan": 363, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 417, "Cevaplanma Süresi Devam Eden": 31},
+            {"Muhatap": "Milli Eğitim Bakanlığı", "Toplam": 2326, "Geri Alınan": 2, "Süresi İçinde Cevaplanan": 344, "Süresi Geçtikten Sonra Cevaplanan": 1886, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 51, "Cevaplanma Süresi Devam Eden": 43},
+            {"Muhatap": "Milli Savunma Bakanlığı", "Toplam": 356, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 107, "Süresi Geçtikten Sonra Cevaplanan": 204, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 31, "Cevaplanma Süresi Devam Eden": 14},
+            {"Muhatap": "Sağlık Bakanlığı", "Toplam": 2520, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 224, "Süresi Geçtikten Sonra Cevaplanan": 1060, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 1156, "Cevaplanma Süresi Devam Eden": 80},
+            {"Muhatap": "Sanayi ve Teknoloji Bakanlığı", "Toplam": 340, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 111, "Süresi Geçtikten Sonra Cevaplanan": 32, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 185, "Cevaplanma Süresi Devam Eden": 12},
+            {"Muhatap": "Tarım ve Orman Bakanlığı", "Toplam": 2795, "Geri Alınan": 1, "Süresi İçinde Cevaplanan": 352, "Süresi Geçtikten Sonra Cevaplanan": 1566, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 778, "Cevaplanma Süresi Devam Eden": 98},
+            {"Muhatap": "Ticaret Bakanlığı", "Toplam": 553, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 120, "Süresi Geçtikten Sonra Cevaplanan": 386, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 29, "Cevaplanma Süresi Devam Eden": 18},
+            {"Muhatap": "Ulaştırma ve Altyapı Bakanlığı", "Toplam": 1821, "Geri Alınan": 0, "Süresi İçinde Cevaplanan": 414, "Süresi Geçtikten Sonra Cevaplanan": 1238, "Cevaplanmadığı Gelen Kağıtlarda İlan Edilen": 117, "Cevaplanma Süresi Devam Eden": 52}
+          ]
+        };
+        
+        // --- 2. VERİ HAZIRLIĞI ---
+        const ministryData = jsonData.table_data.filter(d => d.Muhatap !== "Toplam");
+
+        const kisaAd = (ad) => {
+            return ad.replace('Bakanlığı', '')
+                     .replace('Cumhurbaşkanı Yardımcılığı (Cevdet Yılmaz)', 'CB Yrd.')
+                     .replace('Aile ve Sosyal Hizmetler', 'Aile ve Sos. Hiz.')
+                     .replace('Çalışma ve Sosyal Güvenlik', 'Çalışma ve Sos. Güv.')
+                     .replace('Çevre, Şehircilik ve İklim Değişikliği', 'Çevre ve Şeh.')
+                     .replace('Enerji ve Tabii Kaynaklar', 'Enerji ve Tabii Kay.')
+                     .replace('Gençlik ve Spor', 'Gençlik ve Spor')
+                     .replace('Hazine ve Maliye', 'Hazine ve Maliye')
+                     .replace('Kültür ve Turizm', 'Kültür ve Turizm')
+                     .replace('Milli Eğitim', 'Milli Eğitim')
+                     .replace('Milli Savunma', 'Milli Savunma')
+                     .replace('Sanayi ve Teknoloji', 'Sanayi ve Tekno.')
+                     .replace('Tarım ve Orman', 'Tarım ve Orman')
+                     .replace('Ulaştırma ve Altyapı', 'Ulaştırma ve Alt.')
+                     .trim();
+        };
+
+        const etiketler = ministryData.map(d => kisaAd(d.Muhatap));
+        const toPercent = (value, total) => total > 0 ? (value / total * 100) : 0;
+        
+        const veriSuresinde = ministryData.map(d => toPercent(d['Süresi İçinde Cevaplanan'], d['Süresi İçinde Cevaplanan'] + d['Süresi Geçtikten Sonra Cevaplanan'] + d['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen']));
+        const veriSureSonra = ministryData.map(d => toPercent(d['Süresi Geçtikten Sonra Cevaplanan'], d['Süresi İçinde Cevaplanan'] + d['Süresi Geçtikten Sonra Cevaplanan'] + d['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen']));
+        const veriCevapsiz = ministryData.map(d => toPercent(d['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen'], d['Süresi İçinde Cevaplanan'] + d['Süresi Geçtikten Sonra Cevaplanan'] + d['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen']));
+
+        const siraliVeri = [...ministryData].sort((a, b) => b.Toplam - a.Toplam);
+        const isYukuEtiketleri = siraliVeri.map(d => kisaAd(d.Muhatap));
+        const isYukuToplamlari = siraliVeri.map(d => d.Toplam);
+
+        // --- 3. GRAFİK OLUŞTURMA ---
+        const ortakGrafikSecenekleri = {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' }, padding: 10 } },
+                tooltip: { bodyFont: { size: 10 }, titleFont: { size: 11 } }
+            },
+            scales: { 
+                y: { ticks: { font: { size: 10, weight: '600' } } },
+                x: { ticks: { font: { size: 9 } } } 
+            }
+        };
+
+        // Grafik 1: Oransal Performans
+        new Chart(document.getElementById('proportionalChart'), {
+            type: 'bar',
+            data: {
+                labels: etiketler,
+                datasets: [
+                    { label: 'Yasal Sürede Cevaplananlar', data: veriSuresinde, backgroundColor: '#27ae60' },
+                    { label: 'Yasal Süresi Geçtikten Sonra Cevaplananlar', data: veriSureSonra, backgroundColor: '#f39c12' },
+                    { label: 'Yanıtlanmayan', data: veriCevapsiz, backgroundColor: '#c0392b' }
+                ]
+            },
+            options: {
+                ...ortakGrafikSecenekleri,
+                scales: {
+                    x: { stacked: true, ticks: { callback: value => value.toFixed(0) + '%', font: {size: 9} } },
+                    y: { stacked: true, ticks: { font: {size: 10, weight: '600'} } }
+                },
+                plugins: { ...ortakGrafikSecenekleri.plugins, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } } }
+            }
+        });
+
+        // Grafik 2: Toplam Soru Yükü
+        new Chart(document.getElementById('totalWorkloadChart'), {
+            type: 'bar',
+            data: { labels: isYukuEtiketleri, datasets: [{ label: 'Toplam Soru', data: isYukuToplamlari, backgroundColor: '#2980b9' }] },
+            options: { ...ortakGrafikSecenekleri, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `Toplam Soru: ${ctx.raw.toLocaleString('tr-TR')}`}} } }
+        });
+
+        // --- 4. ISI HARİTALI TABLO OLUŞTURMA ---
+        const tabloBody = document.getElementById('dataTableBody');
+        
+        const getHeatmapColor = (value, max) => {
+            if (max === 0 || value === 0) return 'transparent';
+            const intensity = Math.sqrt(value / max); 
+            return `rgba(230, 126, 34, ${intensity * 0.6})`;
+        };
+
+        const maxValues = {
+            'Toplam': Math.max(...ministryData.map(d => d.Toplam)),
+            'Suresinde': Math.max(...ministryData.map(d => d['Süresi İçinde Cevaplanan'])),
+            'SureSonra': Math.max(...ministryData.map(d => d['Süresi Geçtikten Sonra Cevaplanan'])),
+            'Cevapsiz': Math.max(...ministryData.map(d => d['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen']))
+        };
+
+        ministryData.forEach(row => {
+            const tr = tabloBody.insertRow();
+            tr.innerHTML = `
+                <td>${kisaAd(row.Muhatap)}</td>
+                <td class="numeric" style="background-color: ${getHeatmapColor(row.Toplam, maxValues.Toplam)}">${row.Toplam.toLocaleString('tr-TR')}</td>
+                <td class="numeric" style="background-color: ${getHeatmapColor(row['Süresi İçinde Cevaplanan'], maxValues.Suresinde)}">${row['Süresi İçinde Cevaplanan'].toLocaleString('tr-TR')}</td>
+                <td class="numeric" style="background-color: ${getHeatmapColor(row['Süresi Geçtikten Sonra Cevaplanan'], maxValues.SureSonra)}">${row['Süresi Geçtikten Sonra Cevaplanan'].toLocaleString('tr-TR')}</td>
+                <td class="numeric" style="background-color: ${getHeatmapColor(row['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen'], maxValues.Cevapsiz)}">${row['Cevaplanmadığı Gelen Kağıtlarda İlan Edilen'].toLocaleString('tr-TR')}</td>
+            `;
+        });
+    </script>
+</body>
+</html>
