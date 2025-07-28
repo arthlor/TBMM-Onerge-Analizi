@@ -11,6 +11,8 @@ const App: React.FC = () => {
       <Router>
         <Routes>
           <Route path="/" element={<DashboardScreen />} />
+          <Route path="/TBMM-Onerge-Analizi/" element={<DashboardScreen />} />
+          <Route path="/TBMM-Onerge-Analizi" element={<DashboardScreen />} />
         </Routes>
       </Router>
     </QueryClientProvider>

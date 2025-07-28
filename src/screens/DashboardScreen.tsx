@@ -18,7 +18,7 @@ const DashboardScreen: React.FC = () => {
     <div className="dashboard-container">
       <div className="dashboard-hero">
         <div className="hero-background">
-          <img src="/assets/hero.webp" alt="TBMM Hero" className="hero-image" />
+          <img src="assets/hero.webp" alt="TBMM Hero" className="hero-image" />
           <div className="hero-overlay"></div>
         </div>
         <div className="hero-content">
